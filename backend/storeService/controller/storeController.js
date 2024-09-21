@@ -1,6 +1,6 @@
 // Importing Store model
 let Store = require("../models/Store");
-let logger = require('../logger');
+let logger = require("../logger");
 
 // Creating a new store in the database
 const createStore = async (req, res) => {
@@ -32,7 +32,7 @@ const createStore = async (req, res) => {
 const getAllStore = async (req, res) => {
   await Store.find()
     .then((store) => {
-      logger.info('All stores retrieved successfully.');
+      logger.info("All stores retrieved successfully.");
       // Sending all store objects as response
       res.json(store);
     })
@@ -127,7 +127,9 @@ const getStoreItemCount = async (req, res) => {
       "-storeItem.itemImage"
     );
 
-    logger.info(`Store item count retrieved successfully: ${data.storeItem.length}`);
+    logger.info(
+      `Store item count retrieved successfully: ${data.storeItem.length}`
+    );
     res.json({ itemCount: data.storeItem.length });
   } catch (err) {
     logger.error(`Error retrieving store item count: ${err.message}`);
@@ -178,13 +180,18 @@ const modifyStoreItem = async (req, res) => {
       return res.status(404).json({ error: "Store not found" });
     }
 
-    const itemIndex = store.storeItem.findIndex(itm => itm._id.toString() === item._id);
+    const itemIndex = store.storeItem.findIndex(
+      (itm) => itm._id.toString() === item._id
+    );
     if (itemIndex === -1) {
       logger.error(`Item not found in store: ${item._id}`);
       return res.status(404).json({ error: "Item not found in store" });
     }
 
-    store.storeItem[itemIndex] = { ...store.storeItem[itemIndex].toObject(), ...item };
+    store.storeItem[itemIndex] = {
+      ...store.storeItem[itemIndex].toObject(),
+      ...item,
+    };
     const updatedStore = await store.save();
 
     logger.info(`Store item modified successfully: ${updatedStore}`);
@@ -199,7 +206,10 @@ const modifyStoreItem = async (req, res) => {
 const deleteStoreItem = async (req, res) => {
   const { storeID, itemID } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(storeID) || !mongoose.Types.ObjectId.isValid(itemID)) {
+  if (
+    !mongoose.Types.ObjectId.isValid(storeID) ||
+    !mongoose.Types.ObjectId.isValid(itemID)
+  ) {
     logger.error(`Invalid store ID or item ID: ${storeID}, ${itemID}`);
     return res.status(400).json({ error: "Invalid store ID or item ID" });
   }
@@ -211,7 +221,9 @@ const deleteStoreItem = async (req, res) => {
       return res.status(404).json({ error: "Store not found" });
     }
 
-    store.storeItem = store.storeItem.filter(itm => itm._id.toString() !== itemID);
+    store.storeItem = store.storeItem.filter(
+      (itm) => itm._id.toString() !== itemID
+    );
     const updatedStore = await store.save();
 
     logger.info(`Item deleted from store successfully: ${updatedStore}`);

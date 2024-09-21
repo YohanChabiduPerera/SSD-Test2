@@ -122,17 +122,27 @@ const updateUser = async (req, res) => {
 
   logger.info("Updating user", { userId });
 
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    logger.error("Invalid user ID", { userId });
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
   try {
-    const user = await userModel.findOneAndUpdate(
-      { _id: userId },
-      { userName, image },
-      { new: true }
-    );
+    const user = await userModel.findById(userId);
+    if (!user) {
+      logger.error("User not found", { userId });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.userName = userName;
+    user.image = image;
+    await user.save();
+
     logger.info("User updated successfully", { userId });
     res.json(user);
   } catch (err) {
     logger.error("Error updating user", { userId, error: err.message });
-    res.send(err.message);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -173,20 +183,33 @@ const updateUserStore = async (req, res) => {
   const { userID, storeID } = req.body;
   logger.info("Updating user's store", { userID, storeID });
 
+  if (
+    !mongoose.Types.ObjectId.isValid(userID) ||
+    !mongoose.Types.ObjectId.isValid(storeID)
+  ) {
+    logger.error("Invalid user ID or store ID", { userID, storeID });
+    return res.status(400).json({ error: "Invalid user ID or store ID" });
+  }
+
   try {
-    const updatedUser = await userModel.findOneAndUpdate(
-      { _id: userID },
-      { storeID }
-    );
+    const user = await userModel.findById(userID);
+    if (!user) {
+      logger.error("User not found", { userID });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.storeID = storeID;
+    await user.save();
+
     logger.info("User's store updated successfully", { userID, storeID });
-    res.json(updatedUser);
+    res.json(user);
   } catch (err) {
     logger.error("Error updating user's store", {
       userID,
       storeID,
       error: err.message,
     });
-    res.json(err);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -244,26 +267,25 @@ const setGoogleAccessToken = async (req, res) => {
     });
 
     // Find the user by userName and role
-    const user = await userModel.findOneAndUpdate(
-      { userName, role },
-      { googleAuthAccessToken },
-      { new: true }
-    );
+    const user = await userModel.findOne({ userName, role });
 
-    if (user) {
-      logger.info("Successfully updated Google Account Access Token for user", {
-        userID: user._id,
-        userName,
-        role,
-      });
-      res.status(200).json(user);
-    } else {
+    if (!user) {
       logger.error(
         "Failed to update Google Account Access Token - User not found",
         { userName, role }
       );
-      res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
+
+    user.googleAuthAccessToken = googleAuthAccessToken;
+    await user.save();
+
+    logger.info("Successfully updated Google Account Access Token for user", {
+      userID: user._id,
+      userName,
+      role,
+    });
+    res.status(200).json(user);
   } catch (err) {
     logger.error("Error occurred while updating Google Account Access Token", {
       userName,

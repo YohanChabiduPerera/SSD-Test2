@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import userModel from "../models/User.js";
 import crypto from "crypto";
 import logger from "../logger.js"; // Import logger
+import validator from "validator";
 
 // To generate a token
 const createToken = (id) => {
@@ -257,6 +258,7 @@ const retrieveGoogleAccessToken = async (req, res) => {
   }
 };
 
+
 const setGoogleAccessToken = async (req, res) => {
   const { userName, role, googleAuthAccessToken } = req.body;
 
@@ -266,35 +268,41 @@ const setGoogleAccessToken = async (req, res) => {
       role,
     });
 
-    // Find the user by userName and role
-    const user = await userModel.findOne({ userName, role });
+    // Sanitize input
+    const sanitizedUserName = validator.escape(userName);
+    const sanitizedRole = validator.escape(role);
 
-    if (!user) {
+    // Find the user by sanitized userName and role
+    const user = await userModel.findOneAndUpdate(
+      { userName: sanitizedUserName, role: sanitizedRole },
+      { googleAuthAccessToken },
+      { new: true }
+    );
+
+    if (user) {
+      logger.info("Successfully updated Google Account Access Token for user", {
+        userID: user._id,
+        userName: sanitizedUserName,
+        role: sanitizedRole,
+      });
+      res.status(200).json(user);
+    } else {
       logger.error(
         "Failed to update Google Account Access Token - User not found",
-        { userName, role }
+        { userName: sanitizedUserName, role: sanitizedRole }
       );
-      return res.status(404).json({ message: "User not found" });
+      res.status(404).json({ message: "User not found" });
     }
-
-    user.googleAuthAccessToken = googleAuthAccessToken;
-    await user.save();
-
-    logger.info("Successfully updated Google Account Access Token for user", {
-      userID: user._id,
-      userName,
-      role,
-    });
-    res.status(200).json(user);
   } catch (err) {
     logger.error("Error occurred while updating Google Account Access Token", {
-      userName,
-      role,
+      userName: sanitizedUserName,
+      role: sanitizedRole,
       error: err.message,
     });
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Export functions for use in other files
 export {

@@ -36,31 +36,27 @@ const getAllPayment = async (req, res) => {
 // This function updates a payment's status
 const updatePayment = async (req, res) => {
   const { paymentID, status } = req.body;
-
   if (!mongoose.Types.ObjectId.isValid(paymentID)) {
     return res.status(400).json({ error: "Invalid payment ID" });
   }
 
-    // Validate status
-    const validStatuses = ['Processing', 'Completed', 'Delivered'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
-    }
-
   try {
-    const updatedPayment = await Payment.findOneAndUpdate(
-      { _id: paymentID },
-      { $set: { status: status } },
-      { new: true, runValidators: true } // Apply validators during the update
-    );
-
-    if (!updatedPayment) {
+    // Use findById and save instead of findOneAndUpdate
+    const payment = await Payment.findById(paymentID);
+    if (!payment) {
       return res.status(404).json({ error: "Payment not found" });
     }
 
-    res.status(200).json(updatedPayment);
+    payment.status = status;
+    await payment.save(); // This will run validators
+
+    res.status(200).json(payment);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.name === "ValidationError") {
+      res.status(400).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
   }
 };
 

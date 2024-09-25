@@ -1,6 +1,15 @@
 const router = require("express").Router();
 const requireAuth = require("../middleware/requireAuth");
 const csrfProtection = require("../middleware/csrfProtection");
+const disableCache = require("../middleware/cacheControl");
+
+const rateLimit = require("express-rate-limit");
+
+const createPaymentLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // Limit each IP to 5 createPayment requests per minute
+  message: "Too many payment creation requests, please try again later.",
+});
 
 const {
   createPayment,
@@ -14,8 +23,11 @@ const {
 // Apply authentication to all routes
 router.use(requireAuth);
 
+// Disable cache for all routes
+router.use(disableCache);
+
 // Create a new payment (state-changing, requires CSRF protection)
-router.post("/add", csrfProtection, createPayment);
+router.post("/add", csrfProtection, createPaymentLimiter, createPayment);
 
 // Get all payments (read-only, no CSRF protection needed)
 router.get("/", getAllPayment);

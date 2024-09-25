@@ -6,36 +6,42 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useRef, useState } from "react";
 import { useBackendAPI } from "../context/useBackendAPI";
+import { ContactListPopupModel } from "./ContactListPopupModel";
 import ReviewContainer from "./ReviewContainer";
 import StarRating from "./StarRating";
 
-import { ContactListPopupModel } from "./ContactListPopupModel";
-
 export default function Item(props) {
-  //importing cartContext,dispath and info from the cartContext
+  // importing cartContext, dispatch, and info from the cartContext
   const { dispatch, info, updateCart } = props.useCartContext();
-
   const itemDispatch = props.itemDispatch;
 
   const [selectedItem, setSelectedItem] = useState(0);
+  const reviewDesc = useRef(null);
 
+  const [showPopup, setShowPopup] = useState(false);
+  const [handleOpenFrom, setHandleOpenFrom] = useState("");
+  const [rating, setRating] = useState(0);
+  const [addedRating, setAddedRating] = useState(3);
+  const [selectedItemID, setSelectedItemID] = useState("");
+  const [userCanReview, setUserCanReview] = useState(false);
+
+  const { addReviewProduct } = useBackendAPI();
+  const { getUser } = props.UseUserContext();
+  const user = getUser();
+
+  // Function to add item to cart
   function addItemToCart(data) {
     if (info.length !== 0 && info[0].storeID !== data.storeID) {
       alert("You cannot Select Items from different Stores");
+    } else if (selectedItem + 1 > props.details.quantity) {
+      alert("There are no more available items");
     } else {
-      if (selectedItem + 1 > props.details.quantity) {
-        alert("There are no more available items");
-      } else {
-        setSelectedItem((prev) => prev + 1);
-        dispatch({ type: "UpdateCart", payload: data });
-        updateCart(data);
-      }
+      setSelectedItem((prev) => prev + 1);
+      dispatch({ type: "UpdateCart", payload: data });
+      updateCart(data);
     }
   }
 
-  const [showPopup, setShowPopup] = useState(false);
-
-  const [handleOpenFrom, setHandleOpenFrom] = useState("");
   const handleViewItemClick = () => {
     setShowPopup(true);
   };
@@ -44,64 +50,53 @@ export default function Item(props) {
     setShowPopup(false);
   };
 
-  const [rating, setRating] = useState(0);
-
-  //To get the rating when the review is submitted by the user
-  const [addedRating, setAddedRating] = useState(3);
-
   const getRatingValue = (rating) => {
     setAddedRating(rating);
   };
 
-  const [selectedItemID, setSelectedItemID] = useState("");
-  const reviewDesc = useRef();
+  // To check if the user hasn't already submitted a review
+  function canUserReview(item) {
+    return (
+      props.status && !item.reviews.some((review) => review.userID === user._id)
+    );
+  }
 
-  const { addReviewProduct } = useBackendAPI();
-
-  const { getUser } = props.UseUserContext();
-  const user = getUser();
-  //To submit the user review
+  // To submit the user review
   const submitProductReview = async (e) => {
     e.preventDefault();
 
-    const data = await addReviewProduct({
-      itemID: selectedItemID,
-      rating: addedRating,
-      review: reviewDesc.current.value,
-    });
-
-    if (data) {
-      handleClosePopup();
-      alert("Review added successfully!");
-
-      itemDispatch({
-        type: "AddReview",
-        payload: {
-          _id: data._id,
-          rating: addedRating,
-          review: reviewDesc.current.value,
-          userID: user._id,
-          userName: user.userName,
-        },
+    if (reviewDesc.current && reviewDesc.current.value.trim()) {
+      const data = await addReviewProduct({
+        itemID: selectedItemID,
+        rating: addedRating,
+        review: reviewDesc.current.value,
       });
+
+      if (data) {
+        alert("Review added successfully!");
+        itemDispatch({
+          type: "AddReview",
+          payload: {
+            _id: data._id,
+            rating: addedRating,
+            review: reviewDesc.current.value,
+            userID: user._id,
+            userName: user.userName,
+          },
+        });
+        // Resetting form state after submission
+        setSelectedItemID("");
+        setAddedRating(3);
+        reviewDesc.current.value = ""; // Clear the input field
+
+        handleClosePopup();
+      }
+    } else {
+      alert("Please provide a review description.");
     }
   };
 
-  const [userCanReview, setUserCanReview] = useState(false);
-
-  //To check if the user hasnt already submitted a review
-  function canUserReview(item) {
-    if (props.status) {
-      for (const review of item.reviews) {
-        if (review.userID === user._id) {
-          return false;
-        }
-      }
-      return true;
-    } else return false;
-  }
-
-  //To get the avg rating of each product based on all the customers rating
+  // To get the average rating of each product based on all the customers' ratings
   useEffect(() => {
     if (props.details.reviews.length > 0) {
       const averageRating =
@@ -121,7 +116,7 @@ export default function Item(props) {
             <img
               src={props.details.image}
               style={{ height: "200px", width: "200px" }}
-              alt=""
+              alt={props.details.itemName}
             />
           </div>
           <h5>{props.details.itemName}</h5>
@@ -139,7 +134,7 @@ export default function Item(props) {
               <>
                 <button
                   title="View Item"
-                  onClick={(e) => {
+                  onClick={() => {
                     setHandleOpenFrom("View");
                     handleViewItemClick();
                   }}
@@ -148,7 +143,7 @@ export default function Item(props) {
                 </button>
                 <button
                   title="Add To Cart"
-                  onClick={(e) => {
+                  onClick={() => {
                     addItemToCart({
                       itemID: props.details._id,
                       itemName: props.details.itemName,
@@ -165,7 +160,7 @@ export default function Item(props) {
                 {userCanReview && (
                   <button
                     title="Review Item"
-                    onClick={(e) => {
+                    onClick={() => {
                       setHandleOpenFrom("Review");
                       setSelectedItemID(props.details._id);
                       handleViewItemClick();
@@ -203,8 +198,18 @@ export default function Item(props) {
                 <h2 style={{ color: "black" }}>{props.details.storename}</h2>
                 <h3>Reviews</h3>
                 {props.details.reviews.map((rev) => {
-                  return <ReviewContainer key={rev.userID} review={rev} />;
-                })}{" "}
+                  return (
+                    <ReviewContainer
+                      key={
+                        rev.review +
+                        rev.userID +
+                        rev.rating +
+                        (Math.floor(Math.random() * 50000) + 1)
+                      }
+                      review={rev}
+                    />
+                  );
+                })}
               </>
             ) : (
               <>

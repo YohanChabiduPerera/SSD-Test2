@@ -6,6 +6,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config(); // Load environment variables from .env file
 const cookieParser = require("cookie-parser"); // Add this line
+const helmet = require("helmet"); // Import helmet for security headers
+const permissionsPolicy = require("permissions-policy"); // Import permissions-policy middleware
 
 // Create an Express app
 const app = express();
@@ -23,6 +25,124 @@ app.use(
       }
     },
     credentials: true, // Allow credentials (cookies, etc.)
+  })
+);
+
+app.disable("x-powered-by");
+
+// Security headers using Helmet with a comprehensive set of protections
+app.use(
+  helmet({
+    frameguard: { action: "SAMEORIGIN" }, // Protect against clickjacking
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "https://trusted-scripts.com",
+          "https://www.paypal.com",
+          "https://accounts.google.com",
+        ],
+        styleSrc: [
+          "'self'",
+          "https://cdn.jsdelivr.net",
+          "'sha256-<hashed-style-content>'", // Replace with actual hash
+        ],
+        frameSrc: [
+          "'self'",
+          "https://www.paypal.com",
+          "https://cardinalcommerce.com",
+        ],
+        connectSrc: [
+          "'self'",
+          "http://localhost:3000",
+          "https://www.sandbox.paypal.com",
+          "https://www.googleapis.com",
+          "https://people.googleapis.com",
+        ],
+        frameAncestors: ["'self'"], // Prevent embedding from external domains
+        reportTo: "/csp-violation-report-endpoint", // CSP violation reporting
+      },
+    },
+    referrerPolicy: { policy: "no-referrer" }, // Set Referrer-Policy header
+    noSniff: true, // Disable MIME type sniffing
+    ieNoOpen: true, // Sets X-Download-Options for IE8+ to prevent file downloads
+    hsts: {
+      maxAge: 31536000, // Enforce HTTPS for 1 year
+      includeSubDomains: true, // Apply HSTS to all subdomains
+      preload: true, // Allow preload in the HSTS preload list
+    },
+    xssFilter: true, // Set X-XSS-Protection header to prevent reflected XSS
+    dnsPrefetchControl: { allow: false }, // Prevent DNS prefetching
+    permittedCrossDomainPolicies: { policy: "none" }, // Prevent Adobe Flash/Acrobat cross-domain requests
+    expectCt: {
+      maxAge: 86400, // Enforce Certificate Transparency for 1 day
+      enforce: true,
+    },
+  })
+);
+
+// Security headers using Helmet with a comprehensive set of protections
+app.use(
+  helmet({
+    frameguard: { action: "SAMEORIGIN" }, // Protect against clickjacking
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "https://trusted-scripts.com",
+          "https://www.paypal.com",
+          "https://accounts.google.com",
+        ],
+        styleSrc: [
+          "'self'",
+          "https://cdn.jsdelivr.net",
+          "'sha256-<hashed-style-content>'",
+        ],
+        frameSrc: [
+          "'self'",
+          "https://www.paypal.com",
+          "https://cardinalcommerce.com",
+        ],
+        connectSrc: [
+          "'self'",
+          "http://localhost:3000",
+          "https://www.sandbox.paypal.com",
+          "https://www.googleapis.com",
+          "https://people.googleapis.com",
+        ],
+        frameAncestors: ["'self'"],
+        reportTo: "/csp-violation-report-endpoint",
+      },
+    },
+    referrerPolicy: { policy: "no-referrer" },
+    noSniff: true,
+    ieNoOpen: true,
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    xssFilter: true,
+    dnsPrefetchControl: { allow: false },
+    permittedCrossDomainPolicies: { policy: "none" },
+    expectCt: {
+      maxAge: 86400,
+      enforce: true,
+    },
+  })
+);
+
+// Permissions Policy middleware to restrict certain browser features
+app.use(
+  permissionsPolicy({
+    features: {
+      geolocation: ["self"],
+      camera: ["none"],
+      microphone: ["none"],
+      fullscreen: ["self"],
+    },
   })
 );
 

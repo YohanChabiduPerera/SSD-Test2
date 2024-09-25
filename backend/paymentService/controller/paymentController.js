@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 const createPayment = async (req, res) => {
   const { amount, itemList, userID } = req.body;
 
+  console.log(amount, itemList, userID);
+
   const newPayment = new Payment({
     amount,
     itemList,
@@ -15,6 +17,7 @@ const createPayment = async (req, res) => {
     const data = await newPayment.save();
     res.status(201).json(data); // 201 status code for successful creation
   } catch (err) {
+    console.log(err);
     if (err.name === "ValidationError") {
       res.status(400).json({ error: err.message }); // Return validation errors
     } else {
@@ -41,14 +44,13 @@ const updatePayment = async (req, res) => {
   }
 
   try {
-    // Use findById and save instead of findOneAndUpdate
     const payment = await Payment.findById(paymentID);
     if (!payment) {
       return res.status(404).json({ error: "Payment not found" });
     }
 
     payment.status = status;
-    await payment.save(); // This will run validators
+    await payment.save();
 
     res.status(200).json(payment);
   } catch (err) {

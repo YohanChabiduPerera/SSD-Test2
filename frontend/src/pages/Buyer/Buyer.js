@@ -38,16 +38,26 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
     );
 
     if (updatedOrder) {
-      setStatusValue(3);
+      setStatusValue(3); // Set status to "Delivered"
       alert("Order delivery confirmed");
 
       dispatch({
         type: "ConfirmDelivery",
         payload: { _id: selectedOrderId },
       });
+
+      // Reset popup state after confirmation
+      handleClosePopup(); // Close the popup immediately after confirmation
+      setSelectedOrderId(""); // Clear the selected order
     }
   };
 
+  const handleReviewButtonClick = (orderId, storeId) => {
+    setSelectedOrderId(orderId);
+    setStoreID(storeId);
+    setStatusValue(3); // Set to "Delivered" status or any other relevant status for review
+    handleViewItemClick(); // Open the review popup when the user explicitly clicks "Add Seller Review"
+  };
   //To get the rating when the review is submitted
   const [rating, setRating] = useState(3);
 
@@ -65,7 +75,7 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
       orderID: selectedOrderId,
       storeID,
       rating,
-      review: reviewDesc.current.value,
+      review: reviewDesc?.current?.value,
     });
 
     if (data) {
@@ -120,7 +130,6 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
                         <th scope="col">Order ID</th>
                         <th scope="col">Payment ID</th>
                         <th scope="col">Store ID</th>
-                        <th scope="col">Address</th>
                         <th scope="col">Item List</th>
                         <th scope="col">Order Status</th>
                         <th scope="col" className="text-center">
@@ -135,10 +144,9 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
                             <td scope="col">{data._id.slice(-4)}</td>
                             <td>{data.paymentID.slice(-4)}</td>
                             <td>{data.storeID.slice(-4)}</td>
-                            <td>{data.address}</td>
                             <td>
-                              {data.itemList
-                                .map((itm) => itm.itemName)
+                              {data?.itemList
+                                ?.map((itm) => itm.itemName)
                                 .join(", ")}
                             </td>
                             <td>{data.status}</td>
@@ -164,17 +172,13 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
                               {data.status === "Delivered" && (
                                 <button
                                   className="btn btn-success"
-                                  onClick={(e) => {
-                                    setSelectedOrderId(data._id);
-                                    setStoreID(data.storeID);
-                                    if (data.status === "Delivered")
-                                      setStatusValue(3);
-                                    else {
-                                      setStatusValue(data.statusValue);
-                                    }
-                                    handleViewItemClick();
-                                  }}
-                                  disabled={data.reviewed}
+                                  onClick={() =>
+                                    handleReviewButtonClick(
+                                      data._id,
+                                      data.storeID
+                                    )
+                                  } // Trigger the review popup only when clicking this button
+                                  disabled={data.reviewed} // Disable if already reviewed
                                 >
                                   {data.reviewed
                                     ? "Review Added"
@@ -239,7 +243,7 @@ export default function Buyer({ UseUserContext, UseStoreContext }) {
                                   </div>
                                 </div>
                                 <h4 className="step-title">Order Dispatched</h4>
-                              </div>{" "}
+                              </div>
                               <div
                                 className={`step ${
                                   statusValue > 2 ? "completed" : ""
